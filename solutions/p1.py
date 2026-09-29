@@ -1,0 +1,1 @@
+print("Hello, Smart Car!\nMission starts.")
