@@ -6,7 +6,10 @@
 - PaddleDetection：release/2.9
 
 激活环境：
+
+```bash
 source .venv/bin/activate
+```
 
 ## 1.安装
  -## 二、环境选择
@@ -37,7 +40,9 @@ cd "/home/charmaine/git demo/BaiduSmartCar2027-Training"
 ### 1. 创建虚拟环境
 
 ```bash
-uv venv --python /usr/bin/python3.10 .venv
+uv venv \
+  --python /usr/bin/python3.10 \
+  .venv
 ```
 
 使用系统已有的 Python 3.10 创建 `.venv`
@@ -53,8 +58,10 @@ source .venv/bin/activate
 ### 2. 安装 PaddlePaddle
 
 ```bash
-uv pip install --python .venv/bin/python \
-  'paddlepaddle==2.6.2' 'numpy<2'
+uv pip install \
+  --python .venv/bin/python \
+  paddlepaddle==2.6.2 \
+  'numpy<2'
 ```
 
 `--python` 指定安装目标环境；`==` 固定版本；`numpy<2` 限制使用 NumPy 1.x，符合 PaddleDetection 的依赖要求。
@@ -62,7 +69,9 @@ uv pip install --python .venv/bin/python \
 ### 3. 下载 PaddleDetection
 
 ```bash
-git clone --depth 1 --branch release/2.9 \
+git clone \
+  --depth 1 \
+  --branch release/2.9 \
   https://github.com/PaddlePaddle/PaddleDetection.git \
   .tools/PaddleDetection
 ```
@@ -74,8 +83,10 @@ git clone --depth 1 --branch release/2.9 \
 ```bash
 cd .tools/PaddleDetection
 
-uv pip install --python ../../.venv/bin/python \
-  -r requirements.txt -e .
+uv pip install \
+  --python ../../.venv/bin/python \
+  -r requirements.txt \
+  -e .
 ```
 
 `-r requirements.txt` 指定当前目录的依赖清单，安装其中列出的包。
@@ -108,8 +119,9 @@ ModuleNotFoundError: No module named 'pkg_resources'
 在 PaddleDetection 目录执行：
 
 ```bash
-uv pip install --python ../../.venv/bin/python \
-  'setuptools==80.9.0'
+uv pip install \
+  --python ../../.venv/bin/python \
+  setuptools==80.9.0
 ```
 
 
@@ -119,7 +131,8 @@ uv pip install --python ../../.venv/bin/python \
 激活 `.venv` 后，我执行检查命令了：
 
 ```bash
-python -c "import paddle; print(paddle.__version__); paddle.utils.run_check()"
+python \
+  -c 'import paddle; print(paddle.__version__); paddle.utils.run_check()'
 ```
 
 关键输出：
@@ -135,7 +148,8 @@ PaddlePaddle is installed successfully! Let's start deep learning with PaddlePad
 随后执行：
 
 ```bash
-python -c "import ppdet; print(ppdet.__file__)"
+python \
+  -c 'import ppdet; print(ppdet.__file__)'
 ```
 
 成功输出项目中 `.tools/PaddleDetection/ppdet/__init__.py` 的路径，说明 PaddleDetection 导入成功。
@@ -172,5 +186,92 @@ which python
 
 ## 八、AI 协助与个人学习
 
-环境创建、依赖安装和安装期间的兼容问题由 AI 协助处理。我手动执行了 PaddlePaddle 自检和 PaddleDetection 导入结果。
+环境创建、依赖安装和安装期间的兼容问题由 AI 协助处理。我在终端手动执行 PaddlePaddle 自检和 PaddleDetection 导入检查，查看输出并向 AI 提供结果。我针对 Python 版本、虚拟环境激活、uv 与 Conda 的区别、安装命令的参数和路径、官方自检命令来源等问题持续提问，并整理学习笔记。通过这些操作，我逐步理解了环境隔离、版本选择和安装验证的作用。
 
+## 九、第一张图片检测
+
+### 1. 第一张图片识别
+
+使用官方预训练模型检测 `data/img_1.jpg`，确认单张图片的推理流程，看误检、漏检
+
+模型为 PP-YOLOE-s，使用官方 COCO 预训练权重。选择较小的模型先跑通 CPU 推理。当前任务只有五张图片，用 CPU 因为可以减少 GPU 驱动、CUDA 等配置工作。
+### 2. 执行命令、来源与参数
+
+根据官方源码中的 `docs/tutorials/GETTING_STARTED_cn.md`、`configs/ppyoloe/README_legacy.md` 和 `tools/infer.py` 整理命令，选择配套的配置与权重，并填写本项目的输入、输出位置。
+
+第一次执行的命令：
+```bash
+python tools/infer.py \
+  -c configs/ppyoloe/ppyoloe_crn_s_300e_coco.yml \
+  -o \
+    use_gpu=False \
+    weights=https://paddledet.bj.bcebos.com/models/ppyoloe_crn_s_300e_coco.pdparams \
+  --infer_img=../../data/img_1.jpg \
+  --output_dir=../../output/first_image \
+  --draw_threshold=0.5 \
+  --save_results=True
+```
+然后报错了
+```bash
+FileNotFoundError: [Errno 2] No such file or directory: 'dataset/coco/annotations/instances_val2017.json'
+```
+尝试读取默认的 COCO 标注文件，但本机没有这个文件。
+
+我就把默认的标注路径改成空了TestDataset.anno_path=null
+
+中间还有一次跑不出来，我手动中断了，结果其实是我热点没连网断了
+
+这次运行被我按 Ctrl+C 中断，最后显示：
+
+```text
+KeyboardInterrupt
+```
+
+
+随后再次运行，出现 SSL 连接错误：
+
+```text
+ssl.SSLEOFError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1007)
+```
+
+这表示 HTTPS 连接在握手阶段意外断开，最终异常为 `requests.exceptions.SSLError`。
+
+结果其实是我热点没连网断了
+
+
+增加标注路径覆盖后，最终使用重试成功的命令：
+
+```bash
+python tools/infer.py \
+  -c configs/ppyoloe/ppyoloe_crn_s_300e_coco.yml \
+  -o \
+    use_gpu=False \
+    TestDataset.anno_path=null \
+    weights=https://paddledet.bj.bcebos.com/models/ppyoloe_crn_s_300e_coco.pdparams \
+  --infer_img=../../data/img_1.jpg \
+  --output_dir=../../output/first_image \
+  --draw_threshold=0.5 \
+  --save_results=True
+```
+跑通了之后查看结果图片，左侧的人检测出来多了一个框是bird
+
+### 6. 结果观察与数据核对
+跑通了之后查看结果图片，右侧为 `person 0.90`，左侧的人被标为 `bird 0.5372`，存在错误的 bird 预测。运行成功不代表识别完全正确。
+
+编写notes时检查当前磁盘上的 `bbox.json`，发现三个分数达到 0.5 的预测：
+
+| 类别 | COCO category_id | 分数（约） |
+|---|---|---|
+| person | 1 | 0.8958 |
+| person | 1 | 0.7211 |
+| bird | 16 | 0.5273 |
+
+#
+
+
+### 7.  AI 协助
+
+
+
+
+AI 协助完成初始环境安装和兼容问题处理，查阅官方源码、拟定推理命令、整理我的口述笔记。
