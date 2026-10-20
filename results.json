@@ -1,0 +1,65 @@
+{
+  "model": "ppyoloe_crn_s_300e_coco",
+  "images": [
+    {
+      "file": "vis_1.jpg",
+      "detections": [
+        {
+          "class": "bird",
+          "count": 1,
+          "max_score": 0.5273364186286926
+        },
+        {
+          "class": "person",
+          "count": 2,
+          "max_score": 0.8957915902137756
+        }
+      ]
+    },
+    {
+      "file": "vis_2.jpg",
+      "detections": [
+        {
+          "class": "cow",
+          "count": 2,
+          "max_score": 0.5635697841644287
+        }
+      ]
+    },
+    {
+      "file": "vis_3.jpg",
+      "detections": [
+        {
+          "class": "sheep",
+          "count": 17,
+          "max_score": 0.9294036030769348
+        }
+      ]
+    },
+    {
+      "file": "vis_4.jpg",
+      "detections": [
+        {
+          "class": "motorcycle",
+          "count": 1,
+          "max_score": 0.6766747832298279
+        },
+        {
+          "class": "truck",
+          "count": 1,
+          "max_score": 0.6435074210166931
+        }
+      ]
+    },
+    {
+      "file": "vis_5.jpg",
+      "detections": [
+        {
+          "class": "banana",
+          "count": 1,
+          "max_score": 0.9481809139251709
+        }
+      ]
+    }
+  ]
+}

@@ -275,3 +275,136 @@ python tools/infer.py \
 
 
 AI 协助完成初始环境安装和兼容问题处理，查阅官方源码、拟定推理命令、整理我的口述笔记。
+
+
+## 十、五张图片检测与结果整理
+
+### 1. 执行命令
+
+单图跑通后，我在已激活 `.venv` 的 PaddleDetection 目录下运行五图检测：
+
+```bash
+python tools/infer.py \
+  -c configs/ppyoloe/ppyoloe_crn_s_300e_coco.yml \
+  -o \
+    use_gpu=False \
+    TestDataset.anno_path=null \
+    weights=/home/charmaine/.cache/paddle/weights/ppyoloe_crn_s_300e_coco.pdparams \
+  --infer_dir=../../data \
+  --output_dir=../../output/all_images \
+  --draw_threshold=0.5 \
+  --save_threshold=0.5 \
+  --save_results=True
+```
+
+相比单图命令，这次有四处调整：
+
+| 调整 | 理由 |
+|---|---|
+| `weights=` 使用本地缓存文件路径 | 权重已经下载，直接加载同一官方权重，避免网址引发的联网校验 |
+| `--infer_img` 改为 `--infer_dir` | 处理 `data/` 中全部五张指定图片 |
+| 输出到 `../../output/all_images` | 与之前的单图试运行分开保存 |
+| 增加 `--save_threshold=0.5` | JSON 保存和画框使用相同分数阈值，便于汇总 |
+
+`weights=` 后面是绝对文件路径；`../../data` 和 `../../output/all_images` 是相对目录路径，均以当前 PaddleDetection 目录为起点。
+
+### 2. 尝试过程和实际结果
+
+我执行命令后查看终端输出，确认程序发现五张图片并完成 `5/5`。这次没有出现阻止运行的异常，不需要重新安装或下载权重。已有的 numba 警告没有阻止推理，默认 COCO 类别提示与空标注路径设置一致。
+
+关键日志：
+
+```text
+Found 5 inference images in total.
+The bbox result is saved to ../../output/all_images/bbox.json and do not evaluate the mAP.
+Detection bbox results save in ../../output/all_images/img_1.jpg
+Detection bbox results save in ../../output/all_images/img_2.jpg
+Detection bbox results save in ../../output/all_images/img_4.jpg
+Detection bbox results save in ../../output/all_images/img_3.jpg
+Detection bbox results save in ../../output/all_images/img_5.jpg
+```
+
+随后我打开五张图片，将可视化结果提供给 AI 一起分析。
+
+### 3. 检测效果和分类数量
+
+以下数量按 `output/all_images/bbox.json` 中分数达到 0.5 的预测统计，是模型输出框的数量
+
+| 图片 | 模型输出 | 最高分数（约） | 图片观察 |
+|---|---|---|---|
+| img_1 | person 2 个、bird 1 个 | person 0.8958；bird 0.5273 | 图片中是两个人；左侧还出现错误的 bird 预测，重叠标签使图片上的数量不易直接判断 |
+| img_2 | cow 2 个 | 0.5636 | 其他可见的牛没有框，存在漏检；有的框包含不止一头牛 |
+| img_3 | sheep 17 个 | 0.9294 | 羊群很密集且有遮挡，没有全部检出；框|
+| img_4 | motorcycle 1 个、truck 1 个 | motorcycle 0.6767；truck 0.6435 | 实际是拖拉机，同一目标出现两种预测，分类不准确 |
+| img_5 | banana 1 个 | 0.9482 | 类别正确，但模型用一个大框覆盖整串香蕉，没有逐根检测 |
+
+
+
+### 6. 本地校验
+
+在作业仓库根目录执行：
+
+```bash
+python3 tools/validate.py
+```
+
+输出：
+
+```text
+✓ 自动校验通过！请在验收日前准备现场演示与追问。
+```
+
+
+### 7. AI 协助
+
+AI 提供命令和参数解释，，核对原始 JSON 与类别映射，生成汇总及规定命名的图片。帮助总结我的口头笔记
+
+
+## 十一、完整命令
+
+以下是演示操作清单，不代表已经完成新的实验。使用官方推理程序，按步骤手动运行，不依赖自写脚本。
+
+### 1. 进入项目并激活环境
+
+```bash
+cd "/home/charmaine/git demo/BaiduSmartCar2027-Training"
+source .venv/bin/activate
+```
+
+查看实际使用的 Python 和飞桨版本：
+
+```bash
+which python
+python --version
+python -c "import paddle; print(paddle.__version__)"
+```
+
+需要展示官方 CPU 自检时执行：
+
+```bash
+python -c "import paddle; paddle.utils.run_check()"
+```
+
+### 2. 现场重新检测五张图片
+
+```bash
+cd .tools/PaddleDetection
+
+python tools/infer.py \
+  -c configs/ppyoloe/ppyoloe_crn_s_300e_coco.yml \
+  -o \
+    use_gpu=False \
+    TestDataset.anno_path=null \
+    weights=/home/charmaine/.cache/paddle/weights/ppyoloe_crn_s_300e_coco.pdparams \
+  --infer_dir=../../data \
+  --output_dir=../../output/acceptance_demo \
+  --draw_threshold=0.5 \
+  --save_threshold=0.5 \
+  --save_results=True \
+  --rtn_im_file=True
+```
+
+新结果保存到 `output/acceptance_demo/`
+
+
+
