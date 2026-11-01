@@ -407,3 +407,120 @@ ocr = PaddleOCR(
 选择 1536 是为了保留更多小字细节，接受部分图片退步；选择检测框阈值 0.3，是因为相比 0.6 找回了第 3 张标语和第 7 张部分横幅，而继续降至 0.1 的新增内容经我核对没有可用收益。0.3 也增加了第 10 张误识的 `14`，这个代价明确保留在记录中，不手动删除特定图片的条目来美化结果。
 
 识别分数 0.5 则来自此前后处理对比，避免 0.8 整条删除过多部分正确的内容。
+
+## 十、最终产物与验收复现
+
+### 1. 最终结果来源
+
+采用统一配置：PP-OCRv4、中文配置、CPU、文字方向分类、检测最长边上限1536、检测框阈值0.3、识别结果过滤0.5。没有逐张设置参数，也没有使用人工裁剪作为最终流程。
+
+根目录 `results.json` 从 `output/ocr_size_1536_box_0_3/filtered_0_5.json` 整理，按任务示例保存 `engine`、十张图的 `images` 和 `postprocess`；每条仅提取原有 `text`、`score`，不改变文字或分数。实验文件继续保留文字框坐标。
+
+共123条结果，第2张保留空列表。第10张误识的 `14` 仍如实保留，不手工删掉特定图片的错误来美化结果。现有文件和文件夹名称保持不变。
+
+### 2. 当前环境与命令来源
+
+复用任务一的 `.venv`，Python 3.10.12、PaddlePaddle 2.6.2、PaddleOCR 2.9.1、NumPy 1.26.4、setuptools 80.9.0。当前安装的 OpenCV 包为 opencv-python 4.5.5.64 和 opencv-contrib-python 4.11.0.86，Pillow 12.3.0。此处记录实际环境，不代表已经在全新环境验证全部复现。
+
+PaddleOCR接口及参数来自工具用法，批量循环、结果保存、对比及可视化代码由AI根据任务编写。初始基线由我执行；识别分数过滤和首次1536实验由AI执行；后续裁剪和检测框阈值实验由我按命令执行。我核对原图、指出0.8过度过滤、确认0.1新增内容不可用，并选择当前方案。
+
+### 3. 十张原图现场复现命令
+
+以下在项目根目录执行，创建独立演示输出，不改历史实验和根目录最终结果。本次整理笔记没有执行下面的新推理。
+
+```bash
+source .venv/bin/activate
+```
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+from paddleocr import PaddleOCR
+
+output_dir = Path("output/acceptance_demo")
+if output_dir.exists():
+    raise SystemExit("演示目录已存在，请改用新的目录名。")
+
+paths = [Path("data") / f"sign_{i}.jpg" for i in range(1, 11)]
+for path in paths:
+    if not path.is_file():
+        raise FileNotFoundError(path)
+
+ocr = PaddleOCR(
+    use_gpu=False,
+    lang="ch",
+    ocr_version="PP-OCRv4",
+    use_angle_cls=True,
+    drop_score=0.0,
+    show_log=False,
+    det_limit_side_len=1536,
+    det_limit_type="max",
+    det_db_box_thresh=0.3,
+)
+
+images = []
+for path in paths:
+    texts = []
+    result = ocr.ocr(str(path), cls=True)
+    for page in result:
+        for box, (text, score) in page or []:
+            texts.append({"text": text, "score": float(score), "box": box})
+    images.append({"file": path.name, "texts": texts})
+    print(f"{path.name}：{len(texts)} 条原始结果")
+
+raw = {
+    "engine": "PP-OCRv4",
+    "settings": {
+        "use_gpu": False,
+        "lang": "ch",
+        "ocr_version": "PP-OCRv4",
+        "use_angle_cls": True,
+        "drop_score": 0.0,
+        "det_limit_side_len": 1536,
+        "det_limit_type": "max",
+        "det_db_box_thresh": 0.3,
+    },
+    "images": images,
+}
+output_dir.mkdir(parents=True)
+with (output_dir / "raw.json").open("x", encoding="utf-8") as file:
+    json.dump(raw, file, ensure_ascii=False, indent=2)
+
+# 同一份原始输出分别进行识别分数过滤，不重新运行模型。
+for threshold in [0.5, 0.8]:
+    kept_images = []
+    removed = []
+    for image in images:
+        kept = []
+        for index, item in enumerate(image["texts"], 1):
+            if item["score"] >= threshold:
+                kept.append({"text": item["text"], "score": item["score"]})
+            else:
+                removed.append({
+                    "file": image["file"],
+                    "baseline_index": index,
+                    **item,
+                })
+        kept_images.append({"file": image["file"], "texts": kept})
+    filtered = {
+        "engine": "PP-OCRv4",
+        "images": kept_images,
+        "postprocess": {
+            "score_threshold": threshold,
+            "description": f"保留识别分数不低于{threshold}的结果，未纠错。",
+        },
+    }
+    tag = str(threshold).replace(".", "_")
+    for filename, content in [
+        (f"results_score_{tag}.json", filtered),
+        (f"removed_score_{tag}.json", removed),
+    ]:
+        with (output_dir / filename).open("x", encoding="utf-8") as file:
+            json.dump(content, file, ensure_ascii=False, indent=2)
+    count = sum(len(image["texts"]) for image in kept_images)
+    print(f"识别分数阈值 {threshold}：保留 {count} 条，删除 {len(removed)} 条")
+
+print(f"演示结果已保存到：{output_dir}")
+PY
+```
