@@ -1,0 +1,19 @@
+{
+  "source": "output/ocr_baseline.json",
+  "source_sha256": "f16a811afb96720990ce935049af41b1ea9a61acf82b9a2059b3fac375b57076",
+  "rule": "Keep score >= threshold; no text replacement or extra empty-string filter.",
+  "experiments": [
+    {
+      "threshold": 0.5,
+      "baseline_count": 102,
+      "retained_count": 78,
+      "removed_count": 24
+    },
+    {
+      "threshold": 0.8,
+      "baseline_count": 102,
+      "retained_count": 56,
+      "removed_count": 46
+    }
+  ]
+}
